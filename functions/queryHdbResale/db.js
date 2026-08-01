@@ -1,5 +1,9 @@
 const { Pool } = require('pg')
-const pool = new Pool()
+const pool = new Pool({
+  ssl: {
+    rejectUnauthorized: false
+  }
+})
 
 exports.listCategories = function () {
   return pool.query('SELECT * from resale_prices_meta')

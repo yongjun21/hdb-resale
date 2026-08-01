@@ -41,7 +41,7 @@ export default class Maps extends React.Component {
       }
     })
     .catch(() => {
-      this.heatmap.setMap(null)
+      if (this.heatmap) this.heatmap.setMap(null)
       this.setState({
         isLoading: true
       })
@@ -88,12 +88,14 @@ export default class Maps extends React.Component {
       })
     }
 
-    const ticks = dataPoints.map(tick => ({
-      location: new google.maps.LatLng(tick[0], tick[1]),
-      weight: tick[2]
-    }))
-    this.heatmap.setData(ticks)
-    this.heatmap.setMap(this.map)
+    if (this.heatmap) {
+      const ticks = dataPoints.map(tick => ({
+        location: new google.maps.LatLng(tick[0], tick[1]),
+        weight: tick[2]
+      }))
+      this.heatmap.setData(ticks)
+      this.heatmap.setMap(this.map)
+    }
 
     this.setState({
       isLoading: false
@@ -301,22 +303,32 @@ export default class Maps extends React.Component {
         maxZoom: 16,
         styles: googleMapsStyles.blueWater
       })
-      this.heatmap = new google.maps.visualization.HeatmapLayer({
-        radius: 7
-      })
-      this.drawing = new google.maps.drawing.DrawingManager({
-        drawingMode: 'circle',
-        drawingControlOptions: {
-          drawingModes: ['circle'],
-          position: google.maps.ControlPosition.TOP_CENTER
-        },
-        circleOptions: {
-          fillColor: 'black',
-          fillOpacity: 0.2,
-          strokeWeight: 0.5,
-          strokeColor: 'black'
-        }
-      })
+      try {
+        this.heatmap = new google.maps.visualization.HeatmapLayer({
+          radius: 7
+        })
+      } catch (err) {
+        console.error(err)
+        this.heatmap = null
+      }
+      try {
+        this.drawing = new google.maps.drawing.DrawingManager({
+          drawingMode: 'circle',
+          drawingControlOptions: {
+            drawingModes: ['circle'],
+            position: google.maps.ControlPosition.TOP_CENTER
+          },
+          circleOptions: {
+            fillColor: 'black',
+            fillOpacity: 0.2,
+            strokeWeight: 0.5,
+            strokeColor: 'black'
+          }
+        })
+      } catch (err) {
+        console.error(err)
+        this.drawing = null
+      }
       let panLimits
       google.maps.event.addListenerOnce(this.map, 'bounds_changed', () => {
         const bounds = this.map.getBounds()
@@ -336,14 +348,16 @@ export default class Maps extends React.Component {
         if (panLimits.contains(newCenter)) lastCenter = newCenter
         else this.map.setCenter(lastCenter)
       })
-      this.drawing.addListener('circlecomplete', c => {
-        const center = c.getCenter()
-        const radius = Math.min(c.getRadius(), 500)
-        this.listAllTransactions(center.lat(), center.lng(), radius,
-          this.props.selectedMonth, this.props.selectedFlatType)
-        c.setMap(null)
-      })
-      this.drawing.setMap(this.map)
+      if (this.drawing) {
+        this.drawing.addListener('circlecomplete', c => {
+          const center = c.getCenter()
+          const radius = Math.min(c.getRadius(), 500)
+          this.listAllTransactions(center.lat(), center.lng(), radius,
+            this.props.selectedMonth, this.props.selectedFlatType)
+          c.setMap(null)
+        })
+        this.drawing.setMap(this.map)
+      }
 
       this.plotHeatmap(this.props.selectedMonth, this.props.selectedFlatType)
       window.onresize = () => {
@@ -377,6 +391,12 @@ export default class Maps extends React.Component {
       <main>
         <h1 className='chart-title'>
           Property Hotspots in {getMonthYear(this.props.selectedMonth)}
+          {' '}
+          <i
+            className='fa fa-exclamation-circle'
+            title='Heatmap feature has been deprecated due to Google Maps no longer supporting this API'
+            aria-label='Heatmap feature has been deprecated due to Google Maps no longer supporting this API'
+          />
         </h1>
         <div className='chart-container'>
           <div id='map' ref='map' />
